@@ -1,6 +1,7 @@
 import jwt
 import datetime
 import uuid
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -23,13 +24,16 @@ from rest_framework_simplejwt.tokens import AccessToken
 class LoginView(APIView):
     permission_classes = [AllowAny]  
 
+    from rest_framework_simplejwt.tokens import RefreshToken
+
     def generate_jwt_token(self, userid, email, role):
-        """Generate JWT token using Django SimpleJWT standards"""
-        token = AccessToken()
+    
+        token = RefreshToken()
         token["userid"] = userid
         token["email"] = email
         token["role"] = role
-        return str(token)  # Convert token object to string
+        return str(token.access_token)
+
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -44,7 +48,7 @@ class LoginView(APIView):
 
         if user:
             if password == user["password"]:  
-                userid = user.get("userid")  
+                userid = user.get("userId")  
                 access_token = self.generate_jwt_token(userid, email, user["role"])
 
                 return Response({
@@ -89,33 +93,44 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        """Fetch individual user dashboard details"""
+    def get(self, request, role, userId):
+        """Fetch user dashboard based on role and userid"""
+        
+        # Get Authorization token from request headers
         auth_header = request.headers.get('Authorization')
         if not auth_header:
             return Response({"error": "Authorization header is required."}, status=status.HTTP_401_UNAUTHORIZED)
-        
-        token = auth_header.split()[1]
-        try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
-            user = users_collection.find_one({"userid": payload["userid"]}, {"_id": 0, "password": 0})
 
+        token = auth_header.split()[1]  # Extract JWT token
+        try:
+            # Decode JWT token
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+
+            # Validate token content
+            if 'userid' not in payload or 'role' not in payload:
+                return Response({"error": "Invalid token payload"}, status=status.HTTP_401_UNAUTHORIZED)
+
+            if payload["userid"] != userId or payload["role"] != role:
+                return Response({"error": "Token does not match user details"}, status=status.HTTP_403_FORBIDDEN)
+
+            # Retrieve user from the database
+            user = users_collection.find_one({"userid": userId}, {"_id": 0, "password": 0})
             if not user:
                 return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
             dashboard_data = {"user_info": user}
 
-            # Fetch additional data based on user role
-            if user["role"] == "STUDENT":
-                student_data = students_collection.find_one({"userid": user["userid"]}, {"_id": 0})
+            # Fetch additional data based on role
+            if role == "STUDENT":
+                student_data = students_collection.find_one({"userid": userId}, {"_id": 0})
                 dashboard_data["student_data"] = student_data or {}
 
-            elif user["role"] == "TEACHER":
-                teacher_data = achievements_collection.find({"teacher_id": user["userid"]}, {"_id": 0})
+            elif role == "TEACHER":
+                teacher_data = achievements_collection.find({"teacher_id": userId}, {"_id": 0})
                 dashboard_data["teacher_achievements"] = list(teacher_data)
 
-            elif user["role"] == "PARENT":
-                children_data = list(children_collection.find({"parent_id": user["userid"]}, {"_id": 0}))
+            elif role == "PARENT":
+                children_data = list(children_collection.find({"parent_id": userId}, {"_id": 0}))
                 dashboard_data["children"] = children_data if children_data else []
 
             return Response({"dashboard": dashboard_data}, status=status.HTTP_200_OK)
