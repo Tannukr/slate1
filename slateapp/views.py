@@ -2,6 +2,7 @@ import jwt
 import datetime
 import uuid
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -19,12 +20,10 @@ schools_collection = settings.MONGO_COLLECTION["schools"]
 students_collection = settings.MONGO_COLLECTION["students"]
 
 from rest_framework_simplejwt.tokens import AccessToken
-from rest_framework_simplejwt.tokens import AccessToken
 
 class LoginView(APIView):
     permission_classes = [AllowAny]  
 
-    from rest_framework_simplejwt.tokens import RefreshToken
 
     def generate_jwt_token(self, userid, email, role):
     
@@ -88,7 +87,7 @@ class LoginView(APIView):
             "role": request.data["role"]
         }, status=status.HTTP_201_CREATED)
 
-from rest_framework_simplejwt.authentication import JWTAuthentication
+
 
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
