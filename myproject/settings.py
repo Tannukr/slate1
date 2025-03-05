@@ -90,10 +90,15 @@ MONGO_DB = MONGO_CLIENT["schoolDB"]  # Database name
 MONGO_COLLECTION = {
     "users": MONGO_DB["users"],
     "parents": MONGO_DB["parents"],
-    "children": MONGO_DB["children"],  # Other collections
+    "children": MONGO_DB["children"],
+    "achievements": MONGO_DB["achievements"],
+    "award": MONGO_DB["award"],
+    "students": MONGO_DB["students"],
+    "schools": MONGO_DB["schools"],      # Other collections
 }
 
-
+print("Connected Databases:", MONGO_CLIENT.list_database_names())  
+print("Collections in schoolDB:", MONGO_DB.list_collection_names())  
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
