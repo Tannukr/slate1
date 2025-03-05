@@ -11,6 +11,7 @@ from django.conf import settings
 from .serializers import UserSerializer, LoginSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
+
 users_collection = settings.MONGO_COLLECTION["users"]
 parents_collection = settings.MONGO_COLLECTION["parents"]
 children_collection = settings.MONGO_COLLECTION["children"]
@@ -27,13 +28,11 @@ class LoginView(APIView):
 
     def generate_jwt_token(self, userid, email, role):
     
-        token = RefreshToken()
-        token["userid"] = userid
-        token["email"] = email
-        token["role"] = role
-        return str(token.access_token)
-
-
+        refresh = RefreshToken()
+        refresh["userid"] = userid
+        refresh["email"] = email
+        refresh["role"] = role
+        return str(refresh.access_token), str(refresh)
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
 
@@ -46,12 +45,16 @@ class LoginView(APIView):
         user = users_collection.find_one({"email": email})
 
         if user:
+            print(user)  # Add this in your code before accessing userid
+
             if password == user["password"]:  
-                userid = user.get("userId")  
-                access_token = self.generate_jwt_token(userid, email, user["role"])
+                userid = user.get("userid") or user.get("userId")
+
+                access_token, refresh_token = self.generate_jwt_token(userid, email, user["role"])
 
                 return Response({
-                    'access_token': access_token,
+                    'access_token':access_token,
+                    'refresh_token':refresh_token,
                     "userid": userid,
                     "email": user["email"],
                     "role": user["role"]
